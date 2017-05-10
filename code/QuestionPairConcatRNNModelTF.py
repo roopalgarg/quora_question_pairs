@@ -189,6 +189,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--size_dev_set", default=7000, type=int, help="dev set size"
     )
+    parser.add_argument(
+        "--save_path_pred", default="kaggle", type=str, help="save file for predictions"
+    )
 
     args = parser.parse_args()
 
@@ -238,6 +241,11 @@ if __name__ == "__main__":
         logging.info(
             "Accuracy {accuracy_test} Loss {loss_test}".format(accuracy_test=accuracy_test, loss_test=loss_test)
         )
+
+        list_softmax_py_x = [(round(item[0][0], 3), round(item[0][1], 3)) for item in list_softmax_py_x]
         logging.info(list_softmax_py_x)
+        df = pd.DataFrame.from_records(list_softmax_py_x, columns=["no_duplicate", "is_duplicate"])
+        df = df[["is_duplicate"]]
+        df.to_csv(args.save_path_pred, index_label="test_id")
     else:
         sys.exit("invalid mode. use test or train")
