@@ -3,6 +3,8 @@ import argparse
 import logging
 import sys
 import os
+import numpy as np
+import pandas as pd
 
 
 from deep_learning.models.BaseModelTF import BaseModelTF
@@ -203,11 +205,10 @@ if __name__ == "__main__":
     logging.info("word emb loaded: {}".format(vocab_size))
 
     logging.info("loading dataset")
-    X_train, Y_train, X_dev, Y_dev, X_test, Y_test = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
+    X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
 
     if args.size_test_set:
         X_test = X_test[:args.size_test_set]
-        Y_test = Y_test[:args.size_test_set]
 
     # assert (1 < len(X_test) < len(X_train)), "Test and Train dataset size not appropriate"
     # assert (len(X_test) == len(Y_test)), "Test data and label size mismatch"
@@ -231,9 +232,12 @@ if __name__ == "__main__":
         )
     elif args.mode == "test":
         logging.info("beginning testing")
-        accuracy_test, loss_test, y_pred = model.test(X_test, Y_test, embedding_matrix)
+        Y_test = list(np.zeros(len(X_test), dtype=int))
+
+        accuracy_test, loss_test, y_pred, list_py_x = model.test(X_test, Y_test, embedding_matrix)
         logging.info(
             "Accuracy {accuracy_test} Loss {loss_test}".format(accuracy_test=accuracy_test, loss_test=loss_test)
         )
+        logging.info(list_py_x)
     else:
         sys.exit("invalid mode. use test or train")
