@@ -234,10 +234,10 @@ if __name__ == "__main__":
         logging.info("beginning testing")
         Y_test = list(np.zeros(len(X_test), dtype=int))
 
-        accuracy_test, loss_test, y_pred, list_py_x = model.test(X_test, Y_test, embedding_matrix)
+        accuracy_test, loss_test, y_pred, list_softmax_py_x = model.test(X_test, Y_test, embedding_matrix)
         logging.info(
             "Accuracy {accuracy_test} Loss {loss_test}".format(accuracy_test=accuracy_test, loss_test=loss_test)
         )
-        logging.info(list_py_x)
+        logging.info(list_softmax_py_x)
     else:
         sys.exit("invalid mode. use test or train")
