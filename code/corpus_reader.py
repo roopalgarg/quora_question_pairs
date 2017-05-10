@@ -1,8 +1,5 @@
-import os
-import re
 import pandas as pd
 
-from sklearn.utils import shuffle
 from sklearn.cross_validation import train_test_split
 
 
@@ -23,13 +20,12 @@ class CorpusReader:
             X_train, Y_train, test_size=dev_size, random_state=random_state
         )
 
-        # df_test = pd.read_pickle(data_path_test)
-        # df_test = df_test[['q1_sent_idx', 'q2_sent_idx']]
-        # df_test["sentence_pairs"] = df_test["q1_sent_idx"]
-        # df_test.apply(lambda x: x.sentence_pairs.extend(x.q2_sent_idx), axis=1)
-        #
-        # X_test = df_test["sentence_pairs"].tolist()
-        X_test = list()
+        df_test = pd.read_pickle(data_path_test)
+        df_test = df_test[['q1_sent_idx', 'q2_sent_idx']]
+        df_test["sentence_pairs"] = df_test["q1_sent_idx"]
+        df_test.apply(lambda x: x.sentence_pairs.extend(x.q2_sent_idx), axis=1)
+
+        X_test = df_test["sentence_pairs"].tolist()
         Y_test = list()
 
         return X_train, Y_train, X_dev, Y_dev, X_test, Y_test
