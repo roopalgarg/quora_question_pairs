@@ -149,9 +149,11 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             # )
 
             self.prediction = tf.arg_max(self.logits, dimension=1, name="prediction")
-            target_one_hot = tf.one_hot(indices=self.targets, depth=self.K, dtype=tf.float32, axis=-1, name="one_hot")
-            self.loss = tf.losses.log_loss(labels=target_one_hot, predictions=self.prediction)
             self.logit_softmax = tf.nn.softmax(self.logits, name="logit_softmax")
+
+            target_one_hot = tf.one_hot(indices=self.targets, depth=self.K, dtype=tf.float32, axis=-1, name="one_hot")
+            self.loss = tf.losses.log_loss(labels=target_one_hot, predictions=self.logit_softmax)
+
 
         with tf.name_scope("train_op"):
             global_step = tf.Variable(0, name="global_step", trainable=False)
