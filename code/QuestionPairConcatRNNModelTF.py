@@ -134,10 +134,10 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             dense_layer_op = tf.nn.sigmoid(
                 tf.nn.xw_plus_b(h_concat, self.W_dense_1, self.b_dense_1), name="dense_layer_sigmoid_1"
             )
-            dense_layer_drp_op = tf.nn.dropout(dense_layer_op, keep_prob=self.dropout_keep_prob)
+            # dense_layer_drp_op = tf.nn.dropout(dense_layer_op, keep_prob=self.dropout_keep_prob)
 
         with tf.name_scope("predict"):
-            self.logits = tf.nn.xw_plus_b(dense_layer_drp_op, self.W_op, self.b_op, name="logits")
+            self.logits = tf.nn.xw_plus_b(dense_layer_op, self.W_op, self.b_op, name="logits")
 
         with tf.name_scope("loss"):
             self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
