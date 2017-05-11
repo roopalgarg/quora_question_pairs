@@ -61,7 +61,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 
         with tf.name_scope("output_layer"):
             self.W_dense_1 = tf.Variable(
-                tf.random_uniform([size_dense_layer, size_dense_layer], -0.001, 0.001), dtype=tf.float32, name="W_dense_1"
+                tf.random_uniform([2*self.M, size_dense_layer], -0.001, 0.001), dtype=tf.float32, name="W_dense_1"
             )
             self.b_dense_1 = tf.Variable(tf.zeros(shape=[size_dense_layer]), dtype=tf.float32, name="b_dense_1")
             self.W_op = tf.Variable(
