@@ -213,8 +213,6 @@ if __name__ == "__main__":
     if args.size_test_set:
         X_test = X_test[:args.size_test_set]
 
-    # assert (1 < len(X_test) < len(X_train)), "Test and Train dataset size not appropriate"
-    # assert (len(X_test) == len(Y_test)), "Test data and label size mismatch"
     assert (len(X_train) == len(Y_train)), "Train data and label size mismatch"
     logging.info("train size: {}, test size: {}, dev size: {}".format(len(X_train), len(X_test), len(X_dev)))
     logging.info("loaded dataset")
@@ -235,6 +233,7 @@ if __name__ == "__main__":
         )
     elif args.mode == "test":
         logging.info("beginning testing")
+        model.insert_eos = True
         Y_test = list(np.zeros(len(X_test), dtype=int))
 
         accuracy_test, loss_test, y_pred, list_softmax_py_x = model.test(X_test, Y_test, embedding_matrix)
