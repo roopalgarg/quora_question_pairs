@@ -10,6 +10,7 @@ import pandas as pd
 from deep_learning.models.BaseModelTF import BaseModelTF
 from deep_learning.recurrent_nn.LSTMCell import LSTMCell
 from deep_learning.embeddings.GloveEmbeddings import GloveEmbeddings
+from deep_learning.corpus_reader.Tokens import Tokens
 from corpus_reader import CorpusReader
 
 __author__ = "roopal_garg"
@@ -234,6 +235,7 @@ if __name__ == "__main__":
     elif args.mode == "test":
         logging.info("beginning testing")
         model.insert_eos = True
+        model.eos_idx = word2idx[Tokens.EOS]
         Y_test = list(np.zeros(len(X_test), dtype=int))
 
         accuracy_test, loss_test, y_pred, list_softmax_py_x = model.test(X_test, Y_test, embedding_matrix)
