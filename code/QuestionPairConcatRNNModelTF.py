@@ -271,7 +271,7 @@ if __name__ == "__main__":
             "Accuracy {accuracy_test} Loss {loss_test}".format(accuracy_test=accuracy_test, loss_test=loss_test)
         )
 
-        list_softmax_py_x = [(round(item[0][0], 3), round(item[0][1], 3)) for item in list_softmax_py_x]
+        list_softmax_py_x = [(item[0][0], item[0][1]) for item in list_softmax_py_x]
         logging.info(list_softmax_py_x)
         df = pd.DataFrame.from_records(list_softmax_py_x, columns=["no_duplicate", "is_duplicate"])
         df = df[["is_duplicate"]]
