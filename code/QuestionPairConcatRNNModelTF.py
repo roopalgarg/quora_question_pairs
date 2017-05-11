@@ -26,7 +26,8 @@ logging.basicConfig(
 class QuestionPairConcatRNNModelTF(BaseModelTF):
 
     def __init__(self, v, d, m, model_name, save_dir, list_classes, optimizer=tf.train.GradientDescentOptimizer,
-                 lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True
+                 lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True,
+                 size_dense_layer=256
                  ):
         """
         this model, compares two sentences by concatenating the final hidden states of their representation by running
@@ -59,11 +60,11 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 
         with tf.name_scope("output_layer"):
             self.W_dense_1 = tf.Variable(
-                tf.random_uniform([2 * self.M, 2 * self.M], -0.001, 0.001), dtype=tf.float32, name="W_dense_1"
+                tf.random_uniform([size_dense_layer, size_dense_layer], -0.001, 0.001), dtype=tf.float32, name="W_dense_1"
             )
-            self.b_dense_1 = tf.Variable(tf.zeros(shape=[2 * self.M]), dtype=tf.float32, name="b_dense_1")
+            self.b_dense_1 = tf.Variable(tf.zeros(shape=[size_dense_layer]), dtype=tf.float32, name="b_dense_1")
             self.W_op = tf.Variable(
-                tf.random_uniform([2 * self.M, self.K], -0.001, 0.001), dtype=tf.float32, name="W_op"
+                tf.random_uniform([size_dense_layer, self.K], -0.001, 0.001), dtype=tf.float32, name="W_op"
             )
             self.b_op = tf.Variable(tf.zeros(shape=[self.K]), dtype=tf.float32, name="b_op")
 
@@ -131,7 +132,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         )
 
         with tf.name_scope("output_layer"):
-            dense_layer_op = tf.nn.sigmoid(
+            dense_layer_op = tf.nn.relu(
                 tf.nn.xw_plus_b(h_concat, self.W_dense_1, self.b_dense_1), name="dense_layer_sigmoid_1"
             )
             # dense_layer_drp_op = tf.nn.dropout(dense_layer_op, keep_prob=self.dropout_keep_prob)
@@ -208,6 +209,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_path_pred", default="kaggle", type=str, help="save file for predictions"
     )
+    parser.add_argument(
+        "--size_dense_layer", default=256, type=int, help="dim of dense layer"
+    )
+    parser.add_argument(
+        "--max_to_keep", default=2, type=int, help="max models to keep"
+    )
 
     args = parser.parse_args()
 
@@ -244,15 +251,15 @@ if __name__ == "__main__":
     list_classes = ["0", "1"]
     model = QuestionPairConcatRNNModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
-        optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None],
-        add_summary_emb=True
+        optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0, input_dim=[None, None],
+        add_summary_emb=True, size_dense_layer=args.size_dense_layer
     )
 
     if args.mode == "train":
         logging.info("beginning training")
         model.fit(
             embedding_matrix, X_train, Y_train, X_dev, Y_dev, epochs=args.num_epox, reg=1.0, print_log=True,
-            keep_prob=0.5, log_every=args.log_every, net_epoch_step_idx=None, save_every=None,
+            keep_prob=args.dropout_keep_prob, log_every=args.log_every, net_epoch_step_idx=None, save_every=None,
             tf_log=False, test_every=args.test_every, progress_bar=True, size_dev_set=args.size_dev_set
         )
     elif args.mode == "test":
