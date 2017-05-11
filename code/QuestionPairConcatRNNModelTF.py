@@ -29,7 +29,9 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
                  lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True
                  ):
         """
-        
+        this model, compares two sentences by concatenating the final hidden states of their representation by running
+        them separately through a LSTM. the concatenated representation is them passed through a dense layer with sigmoid
+        non-linearity and then though an output layer with softmax to predict the probabilities.
         :param v: 
         :param d: 
         :param m: 
@@ -92,6 +94,15 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         return tensor_array_h_last, embeddings, idx_sent
 
     def build_graph(self):
+        """
+        
+        :return: 
+        """
+
+        """
+        the self.input_seq contains 2 items: sentence_1 and sentence_2
+        they are padded per the max len between the two
+        """
         input_embeddings = tf.nn.embedding_lookup(self.We, self.input_seq)
 
         tensor_array_sentence_h_last = tf.TensorArray(
@@ -111,6 +122,10 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         )
 
         sentences_h_last = sentences_h_last.concat()
+
+        """
+        concatenating the representation of the two sentences
+        """
         h_concat = tf.reshape(
             sentences_h_last, [1, 2*self.LayerLSTM_1.M], name="sentences_h_last"
         )
@@ -197,8 +212,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     dim = args.emb_size
+
+    """
+    the data_dir contains 2 pickle files with the train and test data
+    """
     data_path_train = os.path.join(args.data_dir, "train.csv.pkl")
     data_path_test = os.path.join(args.data_dir, "test.csv.pkl")
+
     model_name = args.model_name
     emb_path = args.emb_path
     save_dir = args.save_dir
@@ -211,6 +231,9 @@ if __name__ == "__main__":
     logging.info("loading dataset")
     X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
 
+    """
+    trim the test set is desired
+    """
     if args.size_test_set:
         X_test = X_test[:args.size_test_set]
 
@@ -234,6 +257,9 @@ if __name__ == "__main__":
         )
     elif args.mode == "test":
         logging.info("beginning testing")
+        """
+        setting insert_eos True to take care of empty sentences in the data set
+        """
         model.insert_eos = True
         model.eos_idx = word2idx[Tokens.EOS]
         Y_test = list(np.zeros(len(X_test), dtype=int))
