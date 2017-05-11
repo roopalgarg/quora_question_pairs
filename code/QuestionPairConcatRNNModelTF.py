@@ -264,7 +264,9 @@ if __name__ == "__main__":
         model.eos_idx = word2idx[Tokens.EOS]
         Y_test = list(np.zeros(len(X_test), dtype=int))
 
-        accuracy_test, loss_test, y_pred, list_softmax_py_x = model.test(X_test, Y_test, embedding_matrix)
+        accuracy_test, loss_test, y_pred, list_softmax_py_x = model.test(
+            X_test, Y_test, embedding_matrix, progress_bar=True
+        )
         logging.info(
             "Accuracy {accuracy_test} Loss {loss_test}".format(accuracy_test=accuracy_test, loss_test=loss_test)
         )
