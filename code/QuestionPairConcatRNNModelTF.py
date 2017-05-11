@@ -48,8 +48,8 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         """
 
         super(QuestionPairConcatRNNModelTF, self).__init__(
-            v=v, d=d, model_name=model_name, save_dir=save_dir, list_classes=list_classes, max_to_keep=max_to_keep,
-            input_dim=input_dim, lr=lr, clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True
+            v=v, d=d, model_name=model_name, save_dir=save_dir, list_classes=list_classes, input_dim=input_dim, lr=lr,
+            clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True
         )
 
         self.M = m
@@ -168,6 +168,10 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 
 
 if __name__ == "__main__":
+
+    """
+    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairConcatRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_concat_LSTM_M256_DRP_relu_log_loss --dropout_keep_prob 0.25 --save_path_pred kaggle_3 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
+    """
 
     parser = argparse.ArgumentParser()
 
