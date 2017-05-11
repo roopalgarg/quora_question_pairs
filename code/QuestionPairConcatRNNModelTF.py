@@ -266,7 +266,8 @@ if __name__ == "__main__":
         model.fit(
             embedding_matrix, X_train, Y_train, X_dev, Y_dev, epochs=args.num_epox, reg=1.0, print_log=True,
             keep_prob=args.dropout_keep_prob, log_every=args.log_every, net_epoch_step_idx=None, save_every=None,
-            tf_log=False, test_every=args.test_every, progress_bar=True, size_dev_set=args.size_dev_set
+            tf_log=False, test_every=args.test_every, progress_bar=True, size_dev_set=args.size_dev_set,
+            save_on_higher_acc=False, save_on_lower_loss=True
         )
     elif args.mode == "test":
         logging.info("beginning testing")
