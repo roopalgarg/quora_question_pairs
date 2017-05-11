@@ -27,7 +27,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 
     def __init__(self, v, d, m, model_name, save_dir, list_classes, optimizer=tf.train.GradientDescentOptimizer,
                  lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True,
-                 size_dense_layer=256
+                 size_dense_layer=256, activation=tf.nn.tanh
                  ):
         """
         this model, compares two sentences by concatenating the final hidden states of their representation by running
@@ -54,6 +54,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 
         self.M = m
         self.K = len(list_classes)
+        self.f = activation
 
         with tf.name_scope("sentence_lstm"):
             self.LayerLSTM_1 = LSTMCell(dim=self.D, hidden_layer=self.M)
@@ -131,14 +132,16 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             sentences_h_last, [1, 2*self.LayerLSTM_1.M], name="sentences_h_last"
         )
 
+        h_concat_drop_op = tf.nn.dropout(h_concat, keep_prob=self.dropout_keep_prob)
+
         with tf.name_scope("output_layer"):
-            dense_layer_op = tf.nn.relu(
-                tf.nn.xw_plus_b(h_concat, self.W_dense_1, self.b_dense_1), name="dense_layer_sigmoid_1"
+            dense_layer_op = self.f(
+                tf.nn.xw_plus_b(h_concat_drop_op, self.W_dense_1, self.b_dense_1), name="dense_layer_sigmoid_1"
             )
-            # dense_layer_drp_op = tf.nn.dropout(dense_layer_op, keep_prob=self.dropout_keep_prob)
+            dense_layer_drp_op = tf.nn.dropout(dense_layer_op, keep_prob=self.dropout_keep_prob)
 
         with tf.name_scope("predict"):
-            self.logits = tf.nn.xw_plus_b(dense_layer_op, self.W_op, self.b_op, name="logits")
+            self.logits = tf.nn.xw_plus_b(dense_layer_drp_op, self.W_op, self.b_op, name="logits")
 
         with tf.name_scope("loss"):
             self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -252,7 +255,7 @@ if __name__ == "__main__":
     model = QuestionPairConcatRNNModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0, input_dim=[None, None],
-        add_summary_emb=True, size_dense_layer=args.size_dense_layer
+        add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
     )
 
     if args.mode == "train":
