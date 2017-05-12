@@ -189,7 +189,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 if __name__ == "__main__":
 
     """
-    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairConcatRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_concat_LSTM_M256_DRP_relu_log_loss --dropout_keep_prob 0.25 --save_path_pred kaggle_3 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
+    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairConcatRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu --dropout_keep_prob 0.25 --save_path_pred kaggle_4 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
     """
 
     parser = argparse.ArgumentParser()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         type=str, help="amazon reviews pickle path"
     )
     parser.add_argument(
-        "--model_name", default="question_pair_vector_angle_LSTM_M256_DRP", type=str,
+        "--model_name", default="question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu", type=str,
         help="name of model"
     )
     parser.add_argument(
@@ -281,8 +281,7 @@ if __name__ == "__main__":
     model = QuestionPairConcatRNNModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
-        input_dim=[None, None],
-        add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
+        input_dim=[None, None], add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
     )
 
     if args.mode == "train":
