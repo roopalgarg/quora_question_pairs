@@ -113,7 +113,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         )
 
         """
-        for all sentences in a paragraph
+        for both the sentences
         """
         def loop_layer_1_cond(tensor_array_sentence_h_last, input_embeddings, idx_sent): return tf.less(
             idx_sent, self.current_batch_size
@@ -206,7 +206,7 @@ if __name__ == "__main__":
         "--size_test_set", default=None, type=int, help="size of test set"
     )
     parser.add_argument(
-        "--num_epox", default=500, type=int, help="num of epochs"
+        "--num_epox", default=30, type=int, help="num of epochs"
     )
     parser.add_argument(
         "--log_every", default=None, type=int, help="num of steps to log after"
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     list_classes = ["0", "1"]
     model = QuestionPairConcatRNNModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
-        optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0, input_dim=[None, None],
+        optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0, input_dim=[None, None],
         add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
     )
 
