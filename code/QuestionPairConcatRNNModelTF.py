@@ -144,15 +144,12 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             self.logits = tf.nn.xw_plus_b(dense_layer_drp_op, self.W_op, self.b_op, name="logits")
 
         with tf.name_scope("loss"):
-            # self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            #     logits=self.logits, labels=self.targets, name="xentropy"
-            # )
+            self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=self.logits, labels=self.targets, name="xentropy"
+            )
 
             self.prediction = tf.arg_max(self.logits, dimension=1, name="prediction")
             self.logit_softmax = tf.nn.softmax(self.logits, name="logit_softmax")
-
-            target_one_hot = tf.one_hot(indices=self.targets, depth=self.K, dtype=tf.float32, axis=-1, name="one_hot")
-            self.loss = tf.losses.log_loss(labels=target_one_hot, predictions=self.logit_softmax)
 
         with tf.name_scope("train_op"):
             global_step = tf.Variable(0, name="global_step", trainable=False)
