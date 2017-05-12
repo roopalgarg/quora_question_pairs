@@ -310,9 +310,11 @@ if __name__ == "__main__":
         )
 
         list_softmax_py_x = [(item[0][0], item[0][1]) for item in list_softmax_py_x]
-        logging.info(list_softmax_py_x)
+        logging.debug(list_softmax_py_x)
         df = pd.DataFrame.from_records(list_softmax_py_x, columns=["no_duplicate", "is_duplicate"])
         df = df[["is_duplicate"]]
         df.to_csv(args.save_path_pred, index_label="test_id")
     else:
         sys.exit("invalid mode. use test or train")
+
+    logging.info("done...")
