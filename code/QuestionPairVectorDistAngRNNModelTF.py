@@ -140,10 +140,11 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         q2_vec = tf.reshape(q2_vec, [self.LayerLSTM_1.M])
 
         q_vec_angle = tf.multiply(q1_vec, q2_vec, name="vec_angle")
+        q_vec_angle = tf.reshape(q_vec_angle, [1, self.LayerLSTM_1.M])
         q_vec_sq_dist = tf.squared_difference(q1_vec, q2_vec, name="vec_sq_dist")
+        q_vec_sq_dist = tf.reshape(q_vec_sq_dist, [1, self.LayerLSTM_1.M])
 
-        q_vec_concat = tf.concat(q_vec_angle, q_vec_sq_dist)
-        q_vec_concat = tf.reshape(q_vec_concat, [1, 2*self.LayerLSTM_1.M])
+        q_vec_concat = tf.concat([q_vec_angle, q_vec_sq_dist], axis=1, name="q_vec_concat")
 
         h_concat_drop_op = tf.nn.dropout(q_vec_concat, keep_prob=self.dropout_keep_prob)
 
