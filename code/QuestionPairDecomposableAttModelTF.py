@@ -129,7 +129,7 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             )
 
             def loop_cond(tensor_array_e_ij, idx): return tf.less(idx, q1_len)
-            tensor_array_e_ij, _, _ = tf.while_loop(
+            tensor_array_e_ij, _ = tf.while_loop(
                 cond=loop_cond, body=self.loop_e_ij, loop_vars=(tensor_array_e_ij, 0), name="loop_e_ij"
             )
 
