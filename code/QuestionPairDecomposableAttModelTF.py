@@ -225,9 +225,6 @@ if __name__ == "__main__":
         help="name of model"
     )
     parser.add_argument(
-        "--M", default=256, type=int, help="m parameter"
-    )
-    parser.add_argument(
         "--mode", default="train", type=str, help="train or test"
     )
     parser.add_argument(
@@ -292,7 +289,7 @@ if __name__ == "__main__":
 
     list_classes = ["0", "1"]
     model = QuestionPairDecomposableAttModelTF(
-        v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
+        v=vocab_size, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
         input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu
     )
