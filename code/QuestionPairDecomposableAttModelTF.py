@@ -52,23 +52,20 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
         self.K = len(list_classes)
         self.f = activation
 
-        with tf.name_scope("attend_layer"):
-            self.Wf = tf.Variable(
-                tf.random_uniform([self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wf"
-            )
-            self.bf = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bf")
+        self.Wf = tf.Variable(
+            tf.random_uniform([self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wf"
+        )
+        self.bf = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bf")
 
-        with tf.name_scope("compare_layer"):
-            self.Wg = tf.Variable(
-                tf.random_uniform([2*self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wg"
-            )
-            self.bg = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bg")
+        self.Wg = tf.Variable(
+            tf.random_uniform([2*self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wg"
+        )
+        self.bg = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bg")
 
-        with tf.name_scope("aggregate_layer"):
-            self.Wh = tf.Variable(
-                tf.random_uniform([2*self.D, self.K], -0.001, 0.001), dtype=tf.float32, name="Wh"
-            )
-            self.bh = tf.Variable(tf.zeros(shape=[self.K]), dtype=tf.float32, name="bh")
+        self.Wh = tf.Variable(
+            tf.random_uniform([2*self.D, self.K], -0.001, 0.001), dtype=tf.float32, name="Wh"
+        )
+        self.bh = tf.Variable(tf.zeros(shape=[self.K]), dtype=tf.float32, name="bh")
 
         self.q1_rep = None
         self.q2_rep = None
@@ -95,9 +92,9 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
         """
 
         """
-         the self.input_seq contains 2 items: sentence_1 and sentence_2
-         they are padded per the max len between the two
-         """
+        the self.input_seq contains 2 items: sentence_1 and sentence_2
+        they are padded per the max len between the two
+        """
         input_embeddings = tf.nn.embedding_lookup(self.We, self.input_seq)
         q1_emb, q2_emb = tf.split(input_embeddings, num_or_size_splits=2)
         q1_emb = tf.squeeze(q1_emb)
@@ -122,6 +119,7 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             """
             1.1 calculate the un-normalized attention weights e_ij
             """
+
             # TODO: optimize which to multiple and which to recur by
 
             tensor_array_e_ij = tf.TensorArray(
@@ -141,7 +139,7 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             self.e_ij = tf.reshape(e_ij, [q1_len, q2_len], name="e_ij")
 
             """
-            1.2 normalize the e_ij weights
+            1.2 normalize the e_ij attention weights
             
             betas_op: softmax with dim=-1 => normalize across each row
             alphas_op: softmax with dim=0 => normalize across each column
@@ -150,12 +148,17 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             betas_sftmx = tf.nn.softmax(self.e_ij, dim=-1, name="betas_sftmx")
             alphas_sftmx = tf.nn.softmax(self.e_ij, dim=0, name="alphas_sftmx")
 
-            betas_op = betas_sftmx * q2_emb
-            alphas_op = alphas_sftmx * q1_emb
+            """
+            the reshape is needed so that betas_op and alphas_op becomes [q1_len, q2_len, D]
+            """
+            betas_op = tf.reshape(betas_sftmx, [q1_len, q2_len, 1]) * q2_emb
+            alphas_op = tf.reshape(alphas_sftmx, [q1_len, q2_len, 1]) * q1_emb
 
             """
             beta_i: len(beta_i) = q1_len
             alpha_j: len(alpha_j) = q2_len
+            reduce_sum with axis=1 crushes all columns together
+            reduce_sum with axis=0 crushes all rows together
             """
 
             beta_i = tf.reduce_sum(betas_op, axis=1, name="beta_i")
@@ -270,27 +273,27 @@ if __name__ == "__main__":
     emb_path = args.emb_path
     save_dir = args.save_dir
 
-    logging.info("loading word emb")
-    word2idx, embedding_matrix = GloveEmbeddings.get_embeddings_with_custom_tokens(path=emb_path, embedding_dim=dim)
-    vocab_size = len(word2idx)
-    logging.info("word emb loaded: {}".format(vocab_size))
-
-    logging.info("loading dataset")
-    X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
-
-    """
-    trim the test set is desired
-    """
-    if args.size_test_set:
-        X_test = X_test[:args.size_test_set]
-
-    assert (len(X_train) == len(Y_train)), "Train data and label size mismatch"
-    logging.info("train size: {}, test size: {}, dev size: {}".format(len(X_train), len(X_test), len(X_dev)))
-    logging.info("loaded dataset")
+    # logging.info("loading word emb")
+    # word2idx, embedding_matrix = GloveEmbeddings.get_embeddings_with_custom_tokens(path=emb_path, embedding_dim=dim)
+    # vocab_size = len(word2idx)
+    # logging.info("word emb loaded: {}".format(vocab_size))
+    #
+    # logging.info("loading dataset")
+    # X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
+    #
+    # """
+    # trim the test set is desired
+    # """
+    # if args.size_test_set:
+    #     X_test = X_test[:args.size_test_set]
+    #
+    # assert (len(X_train) == len(Y_train)), "Train data and label size mismatch"
+    # logging.info("train size: {}, test size: {}, dev size: {}".format(len(X_train), len(X_test), len(X_dev)))
+    # logging.info("loaded dataset")
 
     list_classes = ["0", "1"]
     model = QuestionPairDecomposableAttModelTF(
-        v=vocab_size, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
+        v=1000, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
         input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu
     )
