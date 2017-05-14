@@ -24,7 +24,7 @@ logging.basicConfig(
 class QuestionPairDecomposableAttModelTF(BaseModelTF):
     def __init__(self, v, d, m, model_name, save_dir, list_classes, optimizer=tf.train.GradientDescentOptimizer,
                  lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True,
-                 activation=tf.nn.relu, debug=False
+                 activation=tf.nn.relu, debug=False, insert_eos=False, eos_idx=None
                  ):
         """
         
@@ -45,7 +45,8 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
 
         super(QuestionPairDecomposableAttModelTF, self).__init__(
             v=v, d=d, model_name=model_name, save_dir=save_dir, list_classes=list_classes, input_dim=input_dim, lr=lr,
-            clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True, debug=debug
+            clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True, debug=debug, insert_eos=insert_eos,
+            eos_idx=eos_idx
         )
 
         self.M = m
@@ -296,7 +297,8 @@ if __name__ == "__main__":
     model = QuestionPairDecomposableAttModelTF(
         v=vocab_size, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
-        input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu, debug=False
+        input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu, debug=False, insert_eos=True,
+        eos_idx=Tokens.EOS
     )
 
     if args.mode == "train":
