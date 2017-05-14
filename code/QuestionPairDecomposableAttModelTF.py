@@ -137,7 +137,8 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             """
             e_ij : [q1_len, q2_len]
             """
-            self.e_ij = tensor_array_e_ij.concat()
+            e_ij = tensor_array_e_ij.concat()
+            self.e_ij = tf.reshape(e_ij, [q1_len, q2_len], name="e_ij")
 
             """
             1.2 normalize the e_ij weights
