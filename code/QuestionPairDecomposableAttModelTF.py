@@ -167,7 +167,9 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             alpha_j = tf.reduce_sum(alphas_op, axis=0, name="alpha_j")
 
         with tf.name_scope("compare_layer"):
-
+            """
+            separately compare the aligned phrases
+            """
             q1_compare = tf.concat([q1_emb, beta_i], axis=1, name="q1_compare")
             q2_compare = tf.concat([q2_emb, alpha_j], axis=1, name="q2_compare")
 
@@ -175,6 +177,10 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             v2_j = self.f(tf.nn.xw_plus_b(q2_compare, self.Wg, self.bg, name="v2_j"))
 
         with tf.name_scope("aggregate_layer"):
+            """
+            aggregate the two comparison vectors and then feed them through a feed forward network followed by a linear
+            layer
+            """
 
             v1 = tf.reduce_sum(v1_i, axis=0, keep_dims=True)
             v2 = tf.reduce_sum(v2_j, axis=0, keep_dims=True)
