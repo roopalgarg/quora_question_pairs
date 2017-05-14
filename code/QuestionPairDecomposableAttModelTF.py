@@ -152,8 +152,8 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
             """
             the reshape is needed so that betas_op and alphas_op becomes [q1_len, q2_len, D]
             """
-            betas_op = tf.reshape(betas_sftmx, [q1_len, q2_len, 1]) * q2_emb
-            alphas_op = tf.reshape(alphas_sftmx, [q1_len, q2_len, 1]) * q1_emb
+            betas_op = tf.expand_dims(betas_sftmx, axis=-1) * tf.expand_dims(q2_emb, axis=0)
+            alphas_op = tf.expand_dims(alphas_sftmx, axis=-1) * tf.expand_dims(q1_emb, axis=1)
 
             """
             beta_i: len(beta_i) = q1_len
