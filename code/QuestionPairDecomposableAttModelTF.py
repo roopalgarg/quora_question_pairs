@@ -1,13 +1,12 @@
-import tensorflow as tf
-import argparse
 import logging
-import sys
 import os
-import numpy as np
+import sys
 import pandas as pd
+import numpy as np
+import argparse
+import tensorflow as tf
 
 from deep_learning.models.BaseModelTF import BaseModelTF
-from deep_learning.recurrent_nn.LSTMCell import LSTMCell
 from deep_learning.embeddings.GloveEmbeddings import GloveEmbeddings
 from deep_learning.corpus_reader.Tokens import Tokens
 from corpus_reader import CorpusReader
@@ -22,15 +21,13 @@ logging.basicConfig(
 )
 
 
-class QuestionPairConcatRNNModelTF(BaseModelTF):
+class QuestionPairDecomposableAttModelTF(BaseModelTF):
     def __init__(self, v, d, m, model_name, save_dir, list_classes, optimizer=tf.train.GradientDescentOptimizer,
                  lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True,
-                 size_dense_layer=256, activation=tf.nn.tanh
+                 activation=tf.nn.relu
                  ):
         """
-        this model, compares two sentences by concatenating the final hidden states of their representation by running
-        them separately through a LSTM. the concatenated representation is them passed through a dense layer with 
-        sigmoid non-linearity and then though an output layer with softmax to predict the probabilities.
+        
         :param v: 
         :param d: 
         :param m: 
@@ -43,9 +40,10 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         :param clip_norm: 
         :param input_dim: 
         :param add_summary_emb: 
+        :param activation: 
         """
 
-        super(QuestionPairConcatRNNModelTF, self).__init__(
+        super(QuestionPairDecomposableAttModelTF, self).__init__(
             v=v, d=d, model_name=model_name, save_dir=save_dir, list_classes=list_classes, input_dim=input_dim, lr=lr,
             clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True
         )
@@ -54,25 +52,27 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         self.K = len(list_classes)
         self.f = activation
 
-        with tf.name_scope("sentence_lstm"):
-            self.LayerLSTM_1 = LSTMCell(dim=self.D, hidden_layer=self.M)
-
-        with tf.name_scope("output_layer"):
-            self.W_dense_1 = tf.Variable(
-                tf.random_uniform([2 * self.M, size_dense_layer], -0.001, 0.001), dtype=tf.float32, name="W_dense_1"
+        with tf.name_scope("attend_layer"):
+            self.Wf = tf.Variable(
+                tf.random_uniform([self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wf"
             )
-            self.b_dense_1 = tf.Variable(tf.zeros(shape=[size_dense_layer]), dtype=tf.float32, name="b_dense_1")
+            self.bf = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bf")
 
-            self.W_dense_2 = tf.Variable(
-                tf.random_uniform([size_dense_layer, size_dense_layer], -0.001, 0.001), dtype=tf.float32,
-                name="W_dense_2"
+        with tf.name_scope("compare_layer"):
+            self.Wg = tf.Variable(
+                tf.random_uniform([2*self.D, self.D], -0.001, 0.001), dtype=tf.float32, name="Wg"
             )
-            self.b_dense_2 = tf.Variable(tf.zeros(shape=[size_dense_layer]), dtype=tf.float32, name="b_dense_2")
+            self.bg = tf.Variable(tf.zeros(shape=[self.D]), dtype=tf.float32, name="bg")
 
-            self.W_op = tf.Variable(
-                tf.random_uniform([size_dense_layer, self.K], -0.001, 0.001), dtype=tf.float32, name="W_op"
+        with tf.name_scope("aggregate_layer"):
+            self.Wh = tf.Variable(
+                tf.random_uniform([2*self.D, self.K], -0.001, 0.001), dtype=tf.float32, name="Wh"
             )
-            self.b_op = tf.Variable(tf.zeros(shape=[self.K]), dtype=tf.float32, name="b_op")
+            self.bh = tf.Variable(tf.zeros(shape=[self.K]), dtype=tf.float32, name="bh")
+
+        self.q1_rep = None
+        self.q2_rep = None
+        self.e_ij = None
 
         self.build_graph()
 
@@ -80,87 +80,105 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         self.saver = tf.train.Saver(max_to_keep=max_to_keep)
         self.train_writer.add_graph(graph=self.tf_session.graph, global_step=1)
 
-    def loop_layer_1(self, tensor_array_h_last, embeddings, idx_sent):
-        elems = tf.gather(embeddings, idx_sent)
+    def loop_e_ij(self, tensor_array_e_ij, q1_rep, idx):
+        e_ij = tf.matmul(q1_rep, self.q2_rep, transpose_b=True)
 
-        """
-        for all words in a sentence
-        """
-        hidden_cell_states = tf.scan(
-            fn=self.LayerLSTM_1.recurrence, elems=elems, initializer=self.LayerLSTM_1.initial_hidden_cell_states,
-            name="layer_1_scan"
-        )
-        h_t, c_t = tf.unstack(hidden_cell_states, axis=1)
+        tensor_array_e_ij = tensor_array_e_ij.write(idx, e_ij)
+        idx = tf.add(idx, 1)
 
-        h_t_last = tf.reshape(h_t[-1, :], [1, self.M])
-
-        tensor_array_h_last = tensor_array_h_last.write(idx_sent, h_t_last)
-        idx_sent = tf.add(idx_sent, 1)
-
-        return tensor_array_h_last, embeddings, idx_sent
+        return tensor_array_e_ij, q1_rep, idx
 
     def build_graph(self):
         """
-
+        
         :return: 
         """
 
         """
-        the self.input_seq contains 2 items: sentence_1 and sentence_2
-        they are padded per the max len between the two
-        """
+         the self.input_seq contains 2 items: sentence_1 and sentence_2
+         they are padded per the max len between the two
+         """
         input_embeddings = tf.nn.embedding_lookup(self.We, self.input_seq)
+        q1_emb, q2_emb = tf.split(input_embeddings, num_or_size_splits=2)
+        q1_emb = tf.squeeze(q1_emb)
+        q2_emb = tf.squeeze(q2_emb)
 
-        tensor_array_sentence_h_last = tf.TensorArray(
-            tf.float32, size=0, dynamic_size=True, clear_after_read=False, infer_shape=False,
-            name="tensor_array_sentences"
-        )
+        max_len = tf.reduce_max(self.input_lengths, name="max_len")
+        q1_len, q2_len = tf.split(self.input_lengths, num_or_size_splits=2, name="q_len")
 
-        """
-        for both the sentences
-        """
+        q1_len = tf.squeeze(q1_len)
+        q2_len = tf.squeeze(q2_len)
 
-        def loop_layer_1_cond(tensor_array_sentence_h_last, input_embeddings, idx_sent): return tf.less(
-            idx_sent, self.current_batch_size
-        )
+        begin_idx_q1 = max_len - q1_len
+        begin_idx_q2 = max_len - q2_len
 
-        sentences_h_last, _, _ = tf.while_loop(
-            loop_layer_1_cond, self.loop_layer_1, (tensor_array_sentence_h_last, input_embeddings, 0),
-            name="loop_sentences"
-        )
+        q1_emb = tf.slice(q1_emb, begin=[begin_idx_q1, 0], size=[-1, -1], name="q1_emb")
+        q2_emb = tf.slice(q2_emb, begin=[begin_idx_q2, 0], size=[-1, -1], name="q2_emb")
 
-        sentences_h_last = sentences_h_last.concat()
+        self.q1_rep = self.f(tf.nn.xw_plus_b(q1_emb, self.Wf, self.bf, name="q1_rep"))
+        self.q2_rep = self.f(tf.nn.xw_plus_b(q2_emb, self.Wf, self.bf, name="q2_rep"))
 
-        """
-        compute the angle and the distance between the two vectors
-        """
+        with tf.name_scope("attend_layer"):
+            """
+            1.1 calculate the un-normalized attention weights e_ij
+            """
+            # TODO: optimize which to multiple and which to recur by
 
-        q1_vec, q2_vec = tf.split(sentences_h_last, num_or_size_splits=2)
-        q1_vec = tf.reshape(q1_vec, [self.LayerLSTM_1.M])
-        q2_vec = tf.reshape(q2_vec, [self.LayerLSTM_1.M])
-
-        q_vec_angle = tf.multiply(q1_vec, q2_vec, name="vec_angle")
-        q_vec_angle = tf.reshape(q_vec_angle, [1, self.LayerLSTM_1.M])
-        q_vec_sq_dist = tf.squared_difference(q1_vec, q2_vec, name="vec_sq_dist")
-        q_vec_sq_dist = tf.reshape(q_vec_sq_dist, [1, self.LayerLSTM_1.M])
-
-        q_vec_concat = tf.concat([q_vec_angle, q_vec_sq_dist], axis=1, name="q_vec_concat")
-
-        h_concat_drop_op = tf.nn.dropout(q_vec_concat, keep_prob=self.dropout_keep_prob)
-
-        with tf.name_scope("output_layer"):
-            dense_layer_op_1 = self.f(
-                tf.nn.xw_plus_b(h_concat_drop_op, self.W_dense_1, self.b_dense_1), name="dense_layer_activation_1"
+            tensor_array_e_ij = tf.TensorArray(
+                tf.float32, size=0, dynamic_size=True, clear_after_read=False, infer_shape=False,
+                name="e_ij_weights"
             )
-            dense_layer_drp_op_1 = tf.nn.dropout(dense_layer_op_1, keep_prob=self.dropout_keep_prob)
 
-            dense_layer_op_2 = self.f(
-                tf.nn.xw_plus_b(dense_layer_drp_op_1, self.W_dense_2, self.b_dense_2), name="dense_layer_activation_2"
+            def loop_cond(tensor_array_e_ij, q1_rep, idx): return tf.less(idx, q1_len)
+            tensor_array_e_ij, _, _ = tf.while_loop(
+                cond=loop_cond, body=self.loop_e_ij, loop_vars=(tensor_array_e_ij, self.q1_rep, 0), name="loop_e_ij"
             )
-            dense_layer_drp_op_2 = tf.nn.dropout(dense_layer_op_2, keep_prob=self.dropout_keep_prob)
+
+            """
+            e_ij : [q1_len, q2_len]
+            """
+            self.e_ij = tensor_array_e_ij.concat()
+
+            """
+            1.2 normalize the e_ij weights
+            
+            betas_op: softmax with dim=-1 => normalize across each row
+            alphas_op: softmax with dim=0 => normalize across each column
+            """
+
+            betas_sftmx = tf.nn.softmax(self.e_ij, dim=-1, name="betas_sftmx")
+            alphas_sftmx = tf.nn.softmax(self.e_ij, dim=0, name="alphas_sftmx")
+
+            betas_op = betas_sftmx * q2_emb
+            alphas_op = alphas_sftmx * q1_emb
+
+            """
+            beta_i: len(beta_i) = q1_len
+            alpha_j: len(alpha_j) = q2_len
+            """
+
+            beta_i = tf.reduce_sum(betas_op, axis=1, name="beta_i")
+            alpha_j = tf.reduce_sum(alphas_op, axis=0, name="alpha_j")
+
+        with tf.name_scope("compare_layer"):
+
+            q1_compare = tf.concat([q1_emb, beta_i], axis=1, name="q1_compare")
+            q2_compare = tf.concat([q2_emb, alpha_j], axis=1, name="q2_compare")
+
+            v1_i = self.f(tf.nn.xw_plus_b(q1_compare, self.Wg, self.bg, name="v1_i"))
+            v2_j = self.f(tf.nn.xw_plus_b(q2_compare, self.Wg, self.bg, name="v2_j"))
+
+        with tf.name_scope("aggregate_layer"):
+
+            v1 = tf.reduce_sum(v1_i, axis=0, keep_dims=True)
+            v2 = tf.reduce_sum(v2_j, axis=0, keep_dims=True)
+
+            v = tf.concat([v1, v2], axis=1, name="v")
+
+            y_hat = tf.nn.xw_plus_b(v, self.Wh, self.bh, name="logits")
 
         with tf.name_scope("predict"):
-            self.logits = tf.nn.xw_plus_b(dense_layer_drp_op_2, self.W_op, self.b_op, name="logits")
+            self.logits = y_hat
 
         with tf.name_scope("loss"):
             self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -170,14 +188,11 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             self.prediction = tf.arg_max(self.logits, dimension=1, name="prediction")
             self.logit_softmax = tf.nn.softmax(self.logits, name="logit_softmax")
 
-            # target_one_hot = tf.one_hot(indices=self.targets, depth=self.K, dtype=tf.float32, axis=-1, name="one_hot")
-            # self.loss = tf.losses.log_loss(labels=target_one_hot, predictions=self.logit_softmax)
-
         with tf.name_scope("train_op"):
             global_step = tf.Variable(0, name="global_step", trainable=False)
 
             trainables = tf.trainable_variables()
-            QuestionPairConcatRNNModelTF.print_trainables(trainables)
+            QuestionPairDecomposableAttModelTF.print_trainables(trainables)
 
             grads = tf.gradients(self.loss, trainables)
             grads, _ = tf.clip_by_global_norm(grads, clip_norm=self.clip_norm)
@@ -190,7 +205,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 if __name__ == "__main__":
 
     """
-    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairConcatRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu --dropout_keep_prob 0.25 --save_path_pred kaggle_4 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
+    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairDecomposableAttModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_datt --dropout_keep_prob 0.4 --save_path_pred kaggle_8 --max_to_keep 3 --size_dev_set 15000 --test_every 100000
     """
 
     parser = argparse.ArgumentParser()
@@ -203,10 +218,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--data_dir", default="/Users/roopal/workspace/kaggle/quora_question_pairs/data",
-        type=str, help="amazon reviews pickle path"
+        type=str, help="quora question pairs pickle path"
     )
     parser.add_argument(
-        "--model_name", default="question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu", type=str,
+        "--model_name", default="question_pair_datt", type=str,
         help="name of model"
     )
     parser.add_argument(
@@ -238,9 +253,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save_path_pred", default="kaggle", type=str, help="save file for predictions"
-    )
-    parser.add_argument(
-        "--size_dense_layer", default=256, type=int, help="dim of dense layer"
     )
     parser.add_argument(
         "--max_to_keep", default=2, type=int, help="max models to keep"
@@ -279,10 +291,10 @@ if __name__ == "__main__":
     logging.info("loaded dataset")
 
     list_classes = ["0", "1"]
-    model = QuestionPairConcatRNNModelTF(
+    model = QuestionPairDecomposableAttModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
-        optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
-        input_dim=[None, None], add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
+        optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
+        input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu
     )
 
     if args.mode == "train":
