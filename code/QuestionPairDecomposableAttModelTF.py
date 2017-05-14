@@ -273,27 +273,27 @@ if __name__ == "__main__":
     emb_path = args.emb_path
     save_dir = args.save_dir
 
-    # logging.info("loading word emb")
-    # word2idx, embedding_matrix = GloveEmbeddings.get_embeddings_with_custom_tokens(path=emb_path, embedding_dim=dim)
-    # vocab_size = len(word2idx)
-    # logging.info("word emb loaded: {}".format(vocab_size))
-    #
-    # logging.info("loading dataset")
-    # X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
-    #
-    # """
-    # trim the test set is desired
-    # """
-    # if args.size_test_set:
-    #     X_test = X_test[:args.size_test_set]
-    #
-    # assert (len(X_train) == len(Y_train)), "Train data and label size mismatch"
-    # logging.info("train size: {}, test size: {}, dev size: {}".format(len(X_train), len(X_test), len(X_dev)))
-    # logging.info("loaded dataset")
+    logging.info("loading word emb")
+    word2idx, embedding_matrix = GloveEmbeddings.get_embeddings_with_custom_tokens(path=emb_path, embedding_dim=dim)
+    vocab_size = len(word2idx)
+    logging.info("word emb loaded: {}".format(vocab_size))
+
+    logging.info("loading dataset")
+    X_train, Y_train, X_dev, Y_dev, X_test, _ = CorpusReader.get_question_pair_data(data_path_train, data_path_test)
+
+    """
+    trim the test set is desired
+    """
+    if args.size_test_set:
+        X_test = X_test[:args.size_test_set]
+
+    assert (len(X_train) == len(Y_train)), "Train data and label size mismatch"
+    logging.info("train size: {}, test size: {}, dev size: {}".format(len(X_train), len(X_test), len(X_dev)))
+    logging.info("loaded dataset")
 
     list_classes = ["0", "1"]
     model = QuestionPairDecomposableAttModelTF(
-        v=1000, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
+        v=vocab_size, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
         input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu
     )
