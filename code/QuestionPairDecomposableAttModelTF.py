@@ -77,13 +77,14 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
         self.saver = tf.train.Saver(max_to_keep=max_to_keep)
         self.train_writer.add_graph(graph=self.tf_session.graph, global_step=1)
 
-    def loop_e_ij(self, tensor_array_e_ij, q1_rep, idx):
+    def loop_e_ij(self, tensor_array_e_ij, idx):
+        q1_rep = tf.expand_dims(tf.gather(self.q1_rep, idx), 0)
         e_ij = tf.matmul(q1_rep, self.q2_rep, transpose_b=True)
 
         tensor_array_e_ij = tensor_array_e_ij.write(idx, e_ij)
         idx = tf.add(idx, 1)
 
-        return tensor_array_e_ij, q1_rep, idx
+        return tensor_array_e_ij, idx
 
     def build_graph(self):
         """
@@ -127,9 +128,9 @@ class QuestionPairDecomposableAttModelTF(BaseModelTF):
                 name="e_ij_weights"
             )
 
-            def loop_cond(tensor_array_e_ij, q1_rep, idx): return tf.less(idx, q1_len)
+            def loop_cond(tensor_array_e_ij, idx): return tf.less(idx, q1_len)
             tensor_array_e_ij, _, _ = tf.while_loop(
-                cond=loop_cond, body=self.loop_e_ij, loop_vars=(tensor_array_e_ij, self.q1_rep, 0), name="loop_e_ij"
+                cond=loop_cond, body=self.loop_e_ij, loop_vars=(tensor_array_e_ij, 0), name="loop_e_ij"
             )
 
             """
@@ -295,7 +296,7 @@ if __name__ == "__main__":
     model = QuestionPairDecomposableAttModelTF(
         v=vocab_size, d=dim, m=dim, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.RMSPropOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
-        input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu, debug=True
+        input_dim=[None, None], add_summary_emb=True, activation=tf.nn.relu, debug=False
     )
 
     if args.mode == "train":
