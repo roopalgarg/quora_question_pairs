@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 
-class QuestionPairConcatRNNModelTF(BaseModelTF):
+class QuestionPairVectorDistAngRNNModelTF(BaseModelTF):
     def __init__(self, v, d, m, model_name, save_dir, list_classes, optimizer=tf.train.GradientDescentOptimizer,
                  lr=0.001, max_to_keep=2, clip_norm=5.0, input_dim=[None, None], add_summary_emb=True,
                  size_dense_layer=256, activation=tf.nn.tanh
@@ -45,7 +45,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
         :param add_summary_emb: 
         """
 
-        super(QuestionPairConcatRNNModelTF, self).__init__(
+        super(QuestionPairVectorDistAngRNNModelTF, self).__init__(
             v=v, d=d, model_name=model_name, save_dir=save_dir, list_classes=list_classes, input_dim=input_dim, lr=lr,
             clip_norm=clip_norm, optimizer=optimizer, save_word_emb=True
         )
@@ -177,7 +177,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
             global_step = tf.Variable(0, name="global_step", trainable=False)
 
             trainables = tf.trainable_variables()
-            QuestionPairConcatRNNModelTF.print_trainables(trainables)
+            QuestionPairVectorDistAngRNNModelTF.print_trainables(trainables)
 
             grads = tf.gradients(self.loss, trainables)
             grads, _ = tf.clip_by_global_norm(grads, clip_norm=self.clip_norm)
@@ -190,7 +190,7 @@ class QuestionPairConcatRNNModelTF(BaseModelTF):
 if __name__ == "__main__":
 
     """
-    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairConcatRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu --dropout_keep_prob 0.25 --save_path_pred kaggle_4 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
+    PYTHONPATH=/home/ubuntu/ds-tws-backend/:/home/ubuntu/quora_question_pairs/ python code/QuestionPairVectorDistAngRNNModelTF.py --mode train --data_dir /home/ubuntu/datasets/quora_question_pairs --emb_path /home/ubuntu/embeddings/glove.6B/glove.6B.300d.txt --model_name question_pair_vector_angle_LSTM_M256_DRP_rmsprop_relu --dropout_keep_prob 0.25 --save_path_pred kaggle_4 --max_to_keep 3 --size_dev_set 15000 --test_every 150000
     """
 
     parser = argparse.ArgumentParser()
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     logging.info("loaded dataset")
 
     list_classes = ["0", "1"]
-    model = QuestionPairConcatRNNModelTF(
+    model = QuestionPairVectorDistAngRNNModelTF(
         v=vocab_size, d=dim, m=args.M, model_name=model_name, save_dir=save_dir, list_classes=list_classes,
         optimizer=tf.train.AdamOptimizer, lr=0.0001, max_to_keep=args.max_to_keep, clip_norm=5.0,
         input_dim=[None, None], add_summary_emb=True, size_dense_layer=args.size_dense_layer, activation=tf.nn.relu
